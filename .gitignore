@@ -1,7 +1,5 @@
 .venv
-# raw
-# unziped
+raw
+unziped
 __*
 patch
-temp
-.env

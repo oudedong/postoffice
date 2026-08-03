@@ -24,101 +24,10 @@
 import math
 from dataclasses import dataclass
 from functools import lru_cache
-import pandas as pd
 
 from ortools.sat.python import cp_model
 
-import os
-import time
-from dotenv import load_dotenv
-import pandas as pd
-import requests
 
-FILE_PATH = "real_hub_distance_matrix.csv"
-REGION_TO_HUB = {
-        "서울특별시": "동서울우편집중국",
-        "경기도": "수원우편집중국",
-        "인천광역시": "부평물류센터",
-        "강원특별자치도": "원주우편집중국",
-        "충청북도": "청주우편집중국",
-        "충청남도": "천안우편집중국",
-        "대전광역시": "대전교환센터",
-        "세종특별자치시": "대전교환센터",
-        "전북특별자치도": "전주우편집중국",
-        "전라남도": "순천집중과",
-        "광주광역시": "광주우편집중국",
-        "경상북도": "안동우편집중국",
-        "경상남도": "창원우편집중국",
-        "대구광역시": "대구우편집중국",
-        "울산광역시": "울산우편집중국",
-        "부산광역시": "부산우편집중국",
-        "제주특별자치도": "제주우편집중국",
-}
-if os.path.exists(FILE_PATH):
-    print(f"✅ '{FILE_PATH}' 파일이 이미 존재합니다. 기존 데이터를 로드합니다.")
-    df_real_matrix = pd.read_csv(FILE_PATH, encoding="cp949")
-else:
-    print(
-        f"🚨 '{FILE_PATH}' 파일이 없습니다. 카카오 API를 호출하여 매트릭스를"
-        " 생성합니다..."
-    )
-    load_dotenv()
-    KAKAO_API_KEY = os.getenv("KAKAO_REST_API_KEY")
-
-    if not KAKAO_API_KEY:
-        raise ValueError(
-            "카카오 API 키를 찾을 수 없습니다. .env 파일을 확인해 주세요!"
-        )
-    HUB_COORDS = {
-        "동서울우편집중국": (127.0963, 37.5350),
-        "수원우편집중국": (127.0205, 37.2642),
-        "부평물류센터": (126.7210, 37.5075),
-        "원주우편집중국": (127.9450, 37.3421),
-        "청주우편집중국": (127.4610, 36.6350),
-        "천안우편집중국": (127.1510, 36.8150),
-        "대전교환센터": (127.3850, 36.3620),
-        "전주우편집중국": (127.1350, 35.8250),
-        "순천집중과": (127.4890, 34.9510),
-        "광주우편집중국": (126.8850, 35.1750),
-        "안동우편집중국": (128.7290, 36.5650),
-        "창원우편집중국": (128.6810, 35.2280),
-        "대구우편집중국": (128.5830, 35.8850),
-        "울산우편집중국": (129.3320, 35.5680),
-        "부산우편집중국": (128.9830, 35.1580),
-        "제주우편집중국": (126.5280, 33.5080),
-    }
-    matrix_data = []
-    df_real_matrix = None
-    try:
-        for orig_name, orig_coord in HUB_COORDS.items():
-            for dest_name, dest_coord in HUB_COORDS.items():
-                if orig_name == dest_name:
-                    dist = 15.0  # 동일 지역 내 수송거리 기본값
-                else:
-                    # 🔑 [수정] 카카오모빌리티 길찾기 전용 URL 사용
-                    url = f"https://apis-navi.kakaomobility.com/v1/directions?origin={orig_coord[0]},{orig_coord[1]}&destination={dest_coord[0]},{dest_coord[1]}"
-                    headers = {"Authorization": f"KakaoAK {KAKAO_API_KEY}"}
-                    res = requests.get(
-                        url, headers=headers, timeout=5
-                    ).json()
-                    dist = round(
-                        res["routes"][0]["summary"]["distance"] / 1000.0, 2
-                    )
-                    time.sleep(0.05)
-
-                matrix_data.append({
-                    "발송집중국": orig_name,
-                    "도착집중국": dest_name,
-                    "운송거리(km)": dist,
-                })
-
-        df_real_matrix = pd.DataFrame(matrix_data)
-        df_real_matrix.to_csv(FILE_PATH, index=False, encoding="cp949")
-        print(f"🎉 파일 생성 완료: '{FILE_PATH}'에 저장되었습니다!")
-    except Exception as e:
-        print(f"파일 생성 실패, 좌표근사치로 거리를 사용함")
-if df_real_matrix is not None:
-    df_real_matrix = df_real_matrix.set_index(['발송집중국','도착집중국'])
 # ---------------------------------------------------------------------------
 # 0. 트럭 톤급 카탈로그 (2021년 우정사업본부 실데이터에서 확인된 실제 운용 톤급)
 # ---------------------------------------------------------------------------
@@ -162,6 +71,14 @@ REGION_COORDS = {
     "광주광역시": (35.1595, 126.8526), "제주특별자치도": (33.4996, 126.5312),
 }
 
+# 실제 3개 물류사업소(우체국물류지원단 공개 위치정보 기준 대략 좌표)
+HUB_COORDS = {
+    "동서울물류센터": (37.5504, 127.2495),  # 하남시 인근
+    "안양물류센터": (37.3943, 126.9568),
+    "부평물류센터": (37.5069, 126.7218),
+}
+
+
 def haversine_km(p1: tuple[float, float], p2: tuple[float, float]) -> float:
     lat1, lon1 = p1
     lat2, lon2 = p2
@@ -174,17 +91,12 @@ def haversine_km(p1: tuple[float, float], p2: tuple[float, float]) -> float:
 
 
 def region_distance_km(region_a: str, region_b: str) -> float:
-    if df_real_matrix is None: # 실제 데이터 사용이 불가하다면 근사좌표값을 사용.
-        return haversine_km(REGION_COORDS[region_a], REGION_COORDS[region_b])
-    # 지역명을 대표 집중국명으로 변환
-    hub_a = REGION_TO_HUB.get(region_a)
-    hub_b = REGION_TO_HUB.get(region_b)
-    # 거리 검색
-    try:
-        distance = df_real_matrix.loc[(hub_a, hub_b), '운송거리(km)']
-    except: # 데이터에서 해당 경로를 못찾은경우 근사치 이용.
-        distance = haversine_km(REGION_COORDS[region_a], REGION_COORDS[region_b])
-    return distance
+    return haversine_km(REGION_COORDS[region_a], REGION_COORDS[region_b])
+
+
+def region_to_hub_distance_km(region: str, hub: str) -> float:
+    return haversine_km(REGION_COORDS[region], HUB_COORDS[hub])
+
 
 # ---------------------------------------------------------------------------
 # 3. 트럭 배차(bin-packing) — OR-Tools CP-SAT
