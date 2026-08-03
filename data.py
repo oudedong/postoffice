@@ -1,4 +1,4 @@
-import os, gc
+import os
 import re
 import urllib.parse
 import requests
@@ -10,11 +10,6 @@ import zipfile
 import pandas as pd
 
 import holidays
-
-from dotenv import load_dotenv
-
-load_dotenv()
-KAKAO_API_KEY = os.getenv("KAKAO_REST_API_KEY")
 
 def _parse_filename(cd: str) -> str:
     if not cd:
@@ -212,6 +207,7 @@ def _preprocess_pandas_table(df:pd.DataFrame) -> pd.DataFrame:
     df = _normalize_region_names(df)
 
     # 접수지역, 배달지역을 범주형으로 변환
+
     df = df.dropna(subset=['접수지역'])
     df = df.dropna(subset=['배달지역'])
     # temp_st_region_list = df['접수지역'].unique().tolist()
@@ -230,13 +226,11 @@ def _preprocess_pandas_table(df:pd.DataFrame) -> pd.DataFrame:
             f"data.py의 all_regions / _legacy_region_map을 원본 데이터 표기에 맞춰 업데이트하세요."
             # f"unique목록: st:{temp_st_region_list}, dst:{temp_dst_region_list}."
         )
-    print("_preprocess_pandas_table: typecasting done..")
+
     # 일자, 지역별로 그룹핑 (observed=True: 실제 관측된 조합만 집계, 불필요한 전체조합 확장 방지)
-    df = df.groupby(['접수일자', '접수지역', '배달지역'], observed=True).agg(
-        총중량_g=('중량', 'sum')
+    df = df.groupby(['접수일자', '접수지역' , '배달지역'], observed=True).agg(
+        총중량_kg=('중량', lambda x: x.sum() / 1000.0), # g -> kg 단위 변환
     ).reset_index()
-    df['총중량_kg'] = df['총중량_g'] / 1000.0
-    df.drop(columns=['총중량_g'], inplace=True)
     return df
 
 def _add_date_features(df: pd.DataFrame, ) -> pd.DataFrame:
@@ -353,9 +347,6 @@ def preprocess_pipeline(src_path: str="./unziped") -> pd.DataFrame:
     df = _add_lag_and_rolling_features(df)
     print("preprocess_pipeline: _add_lag_and_rolling_features done..")
     df = df.dropna().reset_index(drop=True) # 지연피처 추가시에 생긴 nan제거
-    df = df[
-        (df['접수지역'] != '제주특별자치도') & (df['배달지역'] != '제주특별자치도')
-    ]
     print("preprocess_pipeline: all process done..")
     return df
 def split_timeseries_data(
