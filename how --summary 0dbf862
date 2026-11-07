@@ -1,0 +1,23 @@
+* [33ma9d0dd1[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mrescue[m[33m, [m[1;31morigin/rescue[m[33m, [m[1;32mmain[m[33m)[m ok
+[31m|[m * [33m6a6b7ae[m[33m ([m[1;31morigin/main[m[33m)[m change truck tons
+[31m|[m *   [33m0dbf862[m Merge branch 'main' of https://github.com/oudedong/postoffice
+[31m|[m [33m|[m[34m\[m  
+[31m|[m [33m|[m * [33md78d3c9[m Add raw.zip data file via Git LFS
+[31m|[m * [34m|[m [33m7f20699[m add 1.2,2T to truck list
+[31m|[m * [34m|[m [33mfeedbdc[m add 1.4, 2T to truck list
+[31m|[m [34m|[m[34m/[m  
+[31m|[m * [33m3044b41[m add  collected data
+[31m|[m[31m/[m  
+* [33mc8a2a59[m remove jeju
+* [33ma9949bd[m fix
+* [33mc5734e7[m add comments to merge_histories
+* [33mb56c6bf[m add merge_histories for tracing routes
+* [33mab8ab9c[m update main.ipynb
+*   [33ma8a88eb[m Merge pull request #1 from lovesoc7/patch-1
+[35m|[m[36m\[m  
+[35m|[m * [33m9711b95[m Update dispatch.py
+[35m|[m[35m/[m  
+* [33maafd3e8[m add requirement, add greedy placement algorithm
+* [33ma7e9e6a[m fix bugs, add dispatch.py integration.py
+* [33m87b80e7[m second commit
+* [33m8f61a38[m first commit
